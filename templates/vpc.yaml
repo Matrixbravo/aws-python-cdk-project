@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This is a template for VPC
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "VPC CIDR"
+        Parameters:
+          - VpcCIDR
+
+      - Label:
+          default: "Subnet CIDR"
+        Parameters:
+          - SubnetCIDR
+
+Parameters:
+  VpcCIDR: # Logical ID
+    Type: String
+    Default: 10.0.0.0/16
+    Description: Please enter VPC VpcCIDR.
+
+  SubnetCIDR: # Logical ID
+    Type: String
+    Default: 10.0.1.0/24
+    Description: Please enter CIDR for Subnet.
+
+Resources:
+  myVPC: # 1. Create a VPC
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: VpcCIDR #User Specific
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      Tags:
+        - Key: Name
+          Value: myVPC
+
+  myInternetGateway: # 2. Create an Internet Gateway
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: myInternetGateway
+
+  AttachGateway: # 3. Attach the Internet Gateway to the VPC
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: myVPC # Matches with Resource VPC Name
+      InternetGatewayId:
+        Ref: myInternetGateway
+
+  myPublicSubnet: # 4. Create a Public Subnet
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: myVPC
+      CidrBlock:
+        Ref: SubnetCIDR #User Specific
+      AvailabilityZone: "us-east-1a"
+      Tags:
+        - Key: Name
+          Value: myPublicSubnet
+
+  myRouteTable: # 5. Create a Public Route Table
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: myVPC
+      Tags:
+        - Key: Name
+          Value: myRouteTable
+
+  myRoute: # 6. Add a Public Route to the Public Route Table
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: myRouteTable #Referncing the route table
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: myInternetGateway
+
+  mySubnetRouteTableAssociation: # 7. Associate public subnets with the Public Route Table
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId:
+        Ref: myPublicSubnet #Referncing Subnet ID
+      RouteTableId:
+        Ref: myRouteTable #Referncing the route table
+
+  InstanceSecurityGroup: # 8. Create a security Group
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to client host
+      VpcId:
+        Ref: myVPC #Referncing the VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+Outputs:
+  myVPC: # Any name
+    Description: My VPC
+    Value: 
+      Ref: myVPC
+    Export:
+      Name: myVPC
